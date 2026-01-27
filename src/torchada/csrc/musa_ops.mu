@@ -1,7 +1,11 @@
 // torchada MUSA operator overrides
 //
-// This file contains MUSA kernel implementations that override torch_musa's
+// This file contains MUSA kernel implementations that can override torch_musa's
 // default ATen operator implementations.
+//
+// NOTE: No operators are overridden by default. The implementations below serve
+// as examples. To activate an override, uncomment the corresponding m.impl()
+// line in the TORCH_LIBRARY_IMPL block at the bottom of this file.
 
 #include "ops.h"
 #include <ATen/musa/MUSAContext.h>
@@ -9,8 +13,8 @@
 namespace torchada {
 
 // ============================================================================
-// MUSA kernel: neg (negation)
-// Overrides aten::neg for PrivateUse1 (MUSA) tensors
+// Example: MUSA kernel for neg (negation)
+// This demonstrates how to override aten::neg for PrivateUse1 (MUSA) tensors
 // ============================================================================
 
 template <typename scalar_t>
@@ -67,8 +71,9 @@ at::Tensor neg_musa_impl(const at::Tensor& self) {
 
 // ============================================================================
 // Register operator overrides for PrivateUse1 (MUSA)
+// Uncomment m.impl() lines to activate custom implementations
 // ============================================================================
 
 TORCH_LIBRARY_IMPL(aten, PrivateUse1, m) {
-    m.impl("neg", torchada::neg_musa_impl);
+    // m.impl("neg", torchada::neg_musa_impl);
 }
