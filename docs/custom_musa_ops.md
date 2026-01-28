@@ -61,7 +61,11 @@ at::Tensor my_op_impl(const at::Tensor& self) {
 }  // namespace torchada
 
 TORCH_LIBRARY_IMPL(aten, PrivateUse1, m) {
-    m.impl("my_op", torchada::my_op_impl);
+    // Check env var at registration time - allows disabling via
+    // TORCHADA_DISABLE_OP_OVERRIDE_my_op=1
+    if (torchada::is_override_enabled("my_op")) {
+        m.impl("my_op", torchada::my_op_impl);
+    }
 }
 ```
 
@@ -93,8 +97,21 @@ print('Result:', y.cpu()[:5])
 | `TORCHADA_ENABLE_CPP_OPS=1` | Enable C++ operator overrides |
 | `TORCHADA_CPP_OPS_VERBOSE=1` | Show compilation output |
 | `TORCHADA_DEBUG_CPP_OPS=1` | Log operator calls to stdout |
-| `TORCHADA_DISABLE_OP_OVERRIDE_<NAME>=1` | Disable specific operator |
+| `TORCHADA_DISABLE_OP_OVERRIDE_<NAME>=1` | Disable specific operator override |
 | `MTGPU_TARGET=mp_XX` | Override GPU architecture detection |
+
+### Disabling Specific Operators
+
+To disable a specific operator override at runtime, set the environment variable before importing torchada:
+
+```bash
+# Disable the 'neg' operator override, use torch_musa's default instead
+TORCHADA_ENABLE_CPP_OPS=1 TORCHADA_DISABLE_OP_OVERRIDE_neg=1 python my_script.py
+```
+
+**Important**: The operator name in the environment variable should match the name passed to `is_override_enabled()` in the C++ code. For example, if the code uses `is_override_enabled("neg")`, set `TORCHADA_DISABLE_OP_OVERRIDE_neg=1`.
+
+This check happens at **registration time** (when the extension is loaded), not at runtime. Once the extension is loaded, the operator registrations are fixed.
 
 ## GPU Architecture
 

@@ -71,9 +71,17 @@ at::Tensor neg_musa_impl(const at::Tensor& self) {
 
 // ============================================================================
 // Register operator overrides for PrivateUse1 (MUSA)
-// Uncomment m.impl() lines to activate custom implementations
+//
+// Each operator checks TORCHADA_DISABLE_OP_OVERRIDE_<OP_NAME>=1 at registration
+// time. If set, the override is not registered and torch_musa's default
+// implementation is used.
+//
+// Uncomment m.impl() lines to activate custom implementations.
 // ============================================================================
 
 TORCH_LIBRARY_IMPL(aten, PrivateUse1, m) {
-    // m.impl("neg", torchada::neg_musa_impl);
+    // Example: Register neg override only if not disabled
+    // if (torchada::is_override_enabled("neg")) {
+    //     m.impl("neg", torchada::neg_musa_impl);
+    // }
 }

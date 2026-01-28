@@ -4,15 +4,17 @@
 // implementations that override the default PrivateUse1 (MUSA) implementations.
 //
 // Usage:
-//   1. Include this header in your .cpp file
+//   1. Include this header in your .cpp or .mu file
 //   2. Use TORCH_LIBRARY_IMPL(aten, PrivateUse1, m) to register overrides
-//   3. The extension will be built and loaded automatically by torchada
+//   3. Use is_override_enabled("op_name") to check if override should be registered
+//   4. The extension will be built and loaded automatically by torchada
 //
 // Example:
 //   #include "ops.h"
 //
 //   at::Tensor my_custom_add(const at::Tensor& self, const at::Tensor& other,
 //                            const at::Scalar& alpha) {
+//       log_op_call("add.Tensor");  // Optional: log when called
 //       // Custom implementation
 //       auto result = at::empty_like(self);
 //       result.copy_(self);
@@ -21,8 +23,15 @@
 //   }
 //
 //   TORCH_LIBRARY_IMPL(aten, PrivateUse1, m) {
-//       m.impl("add.Tensor", my_custom_add);
+//       // Check env var at registration time - if disabled, don't register
+//       if (torchada::is_override_enabled("add")) {
+//           m.impl("add.Tensor", my_custom_add);
+//       }
 //   }
+//
+// Environment variables:
+//   TORCHADA_DISABLE_OP_OVERRIDE_<OP_NAME>=1  - Disable specific operator override
+//   TORCHADA_DEBUG_CPP_OPS=1                  - Log operator calls to stdout
 
 #pragma once
 
