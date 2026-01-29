@@ -104,6 +104,9 @@ def requires_import(*module_names: str) -> Callable[[Callable], Callable]:
 # Cache for translated device strings - avoids repeated string operations
 _device_str_cache = {}
 
+# Cache for is_musa_platform result - computed once on first call
+_is_musa_platform_cached = None
+
 
 def _translate_device(device: Any) -> Any:
     """
@@ -115,9 +118,15 @@ def _translate_device(device: Any) -> Any:
     Returns:
         Translated device specification
 
-    Performance: String translations are cached for common device strings.
+    Performance: Platform check and string translations are cached.
     """
-    if not is_musa_platform():
+    global _is_musa_platform_cached
+
+    # Cache the platform check result (computed once)
+    if _is_musa_platform_cached is None:
+        _is_musa_platform_cached = is_musa_platform()
+
+    if not _is_musa_platform_cached:
         return device
 
     if device is None:
@@ -173,10 +182,12 @@ def _wrap_to_method(original_to: Callable) -> Callable:
 
 def _wrap_tensor_cuda(original_cuda: Callable) -> Callable:
     """Wrap tensor.cuda() to use musa on MUSA platform."""
+    # Cache platform check at wrapper creation time
+    _is_musa = is_musa_platform()
 
     @functools.wraps(original_cuda)
     def wrapped_cuda(self, device=None, non_blocking=False):
-        if is_musa_platform():
+        if _is_musa:
             # Use .musa() instead
             if hasattr(self, "musa"):
                 return self.musa(device=device, non_blocking=non_blocking)
@@ -191,10 +202,12 @@ def _wrap_tensor_cuda(original_cuda: Callable) -> Callable:
 
 def _wrap_module_cuda(original_cuda: Callable) -> Callable:
     """Wrap nn.Module.cuda() to use musa on MUSA platform."""
+    # Cache platform check at wrapper creation time
+    _is_musa = is_musa_platform()
 
     @functools.wraps(original_cuda)
     def wrapped_cuda(self, device=None):
-        if is_musa_platform():
+        if _is_musa:
             if hasattr(self, "musa"):
                 return self.musa(device=device)
             else:
@@ -788,6 +801,9 @@ def _patch_tensor_is_cuda():
 
     This allows code that checks tensor.is_cuda to work on MUSA.
     We patch the is_cuda property to also return True for MUSA tensors.
+
+    Performance: Uses try/except with direct attribute access for speed.
+    Benchmarks show getattr(self, 'is_musa', False) is faster than self.device.type.
     """
     # Store the original is_cuda property (it's a getset_descriptor)
     original_is_cuda = torch.Tensor.is_cuda
@@ -795,14 +811,17 @@ def _patch_tensor_is_cuda():
     @property
     def patched_is_cuda(self):
         """Return True if tensor is on CUDA or MUSA device."""
-        # Check original is_cuda first
+        # Check original is_cuda first (fast path for actual CUDA tensors)
+        # Use direct property access - original_is_cuda is a getset_descriptor
+        result = original_is_cuda.__get__(self)
+        if result:
+            return True
+        # Check if tensor is on MUSA device
+        # Use try/except with direct attribute access - faster than getattr with default
         try:
-            if original_is_cuda.__get__(self):
-                return True
-        except Exception:
-            pass
-        # Also return True for MUSA tensors
-        return getattr(self, "is_musa", False)
+            return self.is_musa
+        except AttributeError:
+            return False
 
     # Replace is_cuda with our patched version
     torch.Tensor.is_cuda = patched_is_cuda

@@ -68,7 +68,7 @@ pytest tests/ --tb=short
 
 **Test Markers** (defined in `conftest.py`):
 - `@pytest.mark.musa` - Requires MUSA platform
-- `@pytest.mark.cuda` - Requires CUDA platform  
+- `@pytest.mark.cuda` - Requires CUDA platform
 - `@pytest.mark.gpu` - Requires any GPU
 - `@pytest.mark.slow` - Slow tests
 
@@ -137,6 +137,38 @@ if not torchada.is_musa_platform():
 import uuid
 lib_name = f"test_lib_{uuid.uuid4().hex[:8]}"
 ```
+
+## Performance Benchmarking
+
+torchada uses aggressive caching to minimize runtime overhead. Performance is tracked across versions.
+
+**Benchmark files**:
+- `benchmarks/benchmark_overhead.py` - Benchmark script
+- `benchmarks/benchmark_history.json` - Historical results
+
+**Running benchmarks**:
+```bash
+# Run benchmarks (print only)
+docker exec -w /ws yeahdongcn1 python benchmarks/benchmark_overhead.py
+
+# Run and save results to history (do this before releasing new versions)
+docker exec -w /ws yeahdongcn1 python benchmarks/benchmark_overhead.py --save
+```
+
+**Performance targets**:
+- Fast operations (<200ns): `torch.cuda.device_count()`, `torch.cuda.Stream`, `torch.cuda.Event`, `_translate_device()`, `torch.backends.cuda.is_built()`
+- Medium operations (200-800ns): Operations with inherent costs (runtime calls, object creation) that cannot be optimized further
+
+**When to run benchmarks**:
+1. After adding new patches that affect hot paths
+2. Before releasing a new version (use `--save` to record results)
+3. When optimizing existing patches
+
+**Optimization techniques used**:
+- Attribute caching in `__dict__` to bypass `__getattr__` on subsequent accesses
+- Platform check caching (global variable `_is_musa_platform_cached`)
+- String translation caching (`_device_str_cache`)
+- Closure variable caching for wrapper functions
 
 ## Security Considerations
 

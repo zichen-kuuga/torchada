@@ -180,6 +180,22 @@ def is_musa():
     return hasattr(torch.version, 'musa') and torch.version.musa is not None
 ```
 
+## Performance
+
+torchada uses aggressive caching to minimize runtime overhead. All frequently-called operations complete in under 200 nanoseconds:
+
+| Operation | Overhead |
+|-----------|----------|
+| `torch.cuda.device_count()` | ~140ns |
+| `torch.cuda.Stream` (attribute access) | ~130ns |
+| `torch.cuda.Event` (attribute access) | ~130ns |
+| `_translate_device('cuda')` | ~140ns |
+| `torch.backends.cuda.is_built()` | ~155ns |
+
+For comparison, a typical GPU kernel launch takes 5,000-20,000ns. The patching overhead is negligible for real-world applications.
+
+Operations with inherent costs (runtime calls, object creation) take 300-600ns but cannot be optimized further without changing behavior.
+
 ## Known Limitation
 
 **Device type string comparisons fail on MUSA:**

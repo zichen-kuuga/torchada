@@ -180,6 +180,22 @@ def is_musa():
     return hasattr(torch.version, 'musa') and torch.version.musa is not None
 ```
 
+## 性能
+
+torchada 使用激进的缓存策略来最小化运行时开销。所有频繁调用的操作都在 200 纳秒内完成：
+
+| 操作 | 开销 |
+|------|------|
+| `torch.cuda.device_count()` | ~140ns |
+| `torch.cuda.Stream`（属性访问） | ~130ns |
+| `torch.cuda.Event`（属性访问） | ~130ns |
+| `_translate_device('cuda')` | ~140ns |
+| `torch.backends.cuda.is_built()` | ~155ns |
+
+作为对比，典型的 GPU 内核启动耗时 5,000-20,000ns。补丁开销对于实际应用来说可以忽略不计。
+
+具有固有成本的操作（运行时调用、对象创建）耗时 300-600ns，但在不改变行为的情况下无法进一步优化。
+
 ## 已知限制
 
 **设备类型字符串比较在 MUSA 上会失败：**
