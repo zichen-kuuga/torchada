@@ -1129,7 +1129,11 @@ class TestIsCompiledAndBackends:
         # fp32_precision is a torchada addition for MUSA compatibility
         # It wraps torch.get/set_float32_matmul_precision() for convenient access
         # This attribute does NOT exist in standard PyTorch on CUDA platforms
-        if not hasattr(torch.backends.cuda.matmul, "fp32_precision"):
+        # Note: torch.backends.cuda.matmul.__getattr__ raises AssertionError for
+        # unknown attributes, so we need to catch that instead of using hasattr()
+        try:
+            _ = torch.backends.cuda.matmul.fp32_precision
+        except (AttributeError, AssertionError):
             pytest.skip("fp32_precision not available (torchada MUSA-specific attribute)")
 
         # Should be accessible
