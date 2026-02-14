@@ -188,6 +188,8 @@ _MAPPING_RULE = {
     "cudaMemcpyDeviceToHost": "musaMemcpyDeviceToHost",
     "cudaMemcpyDeviceToDevice": "musaMemcpyDeviceToDevice",
     "cudaMemcpyHostToHost": "musaMemcpyHostToHost",
+    # Constants - memory allocation
+    "cudaFuncAttributeMaxDynamicSharedMemorySize": "musaFuncAttributeMaxDynamicSharedMemorySize",
     # =========================================================================
     # Data types
     # =========================================================================
@@ -456,6 +458,7 @@ _MAPPING_RULE = {
     "torch::kCUDA": "torch::kPrivateUse1",
     "cudaDeviceIndex": "musaDeviceIndex",
     "CUDADeviceIndex": "MUSADeviceIndex",
+    "getCurrentCUDABlasHandle": "getCurrentMUSABlasHandle",
     # =========================================================================
     # CUDA driver API -> MUSA driver API
     # =========================================================================
@@ -495,6 +498,7 @@ _MAPPING_RULE = {
     "CU_MEM_ALLOCATION_COMP_NONE": "MU_MEM_ALLOCATION_COMP_NONE",
     "CU_MEM_ALLOCATION_TYPE_PINNED": "MU_MEM_ALLOCATION_TYPE_PINNED",
     "CU_MEM_LOCATION_TYPE_DEVICE": "MU_MEM_LOCATION_TYPE_DEVICE",
+    "CU_DEVICE_ATTRIBUTE_GPU_DIRECT_RDMA_WITH_CUDA_VMM_SUPPORTED": "MU_DEVICE_ATTRIBUTE_GPU_DIRECT_RDMA_WITH_MUSA_VMM_SUPPORTED",
     # Constants - pointer attributes
     "CU_POINTER_ATTRIBUTE_CONTEXT": "MU_POINTER_ATTRIBUTE_CONTEXT",
     "CU_POINTER_ATTRIBUTE_DEVICE_POINTER": "MU_POINTER_ATTRIBUTE_DEVICE_POINTER",
