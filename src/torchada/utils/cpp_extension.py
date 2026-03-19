@@ -553,7 +553,8 @@ def _get_build_extension_class():
                                     dst_path = os.path.join(dst_dir, file)
                                     os.makedirs(dst_dir, exist_ok=True)
                                     shutil.copy2(src_path, dst_path)
-
+                    if hasattr(os, 'sync'):
+                        os.sync()
                     return musa_dir
 
                 def _convert_source_path(self, source):
