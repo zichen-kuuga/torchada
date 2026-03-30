@@ -1123,18 +1123,29 @@ class TestIsCompiledAndBackends:
         except (AttributeError, AssertionError):
             pytest.skip("fp32_precision not available (torchada MUSA-specific attribute)")
 
-        # Should be accessible
+        if torch.__version__ >= torch.torch_version.TorchVersion("2.9.0"):
+            # PyTorch 2.9+: Only use the new API. Do NOT call torch.get_float32_matmul_precision()
+            valid_precisions = ("ieee", "tf32")
+            test_values = ["ieee", "tf32"]
+            check_underlying_api = False  # Critical: avoid mixing APIs
+        else:
+            valid_precisions = ("highest", "high", "medium")
+            test_values = ["highest", "high"]
+            check_underlying_api = True
+
+        # Save original state
         original = torch.backends.cuda.matmul.fp32_precision
-        assert original in ("highest", "high", "medium")
+        assert original in valid_precisions, \
+            f"fp32_precision value '{original}' not in expected set {valid_precisions}"
 
-        # Test setting (use torch.get/set_float32_matmul_precision values)
-        torch.backends.cuda.matmul.fp32_precision = "highest"
-        assert torch.backends.cuda.matmul.fp32_precision == "highest"
-        assert torch.get_float32_matmul_precision() == "highest"
+        # Test setting values
+        for test_value in test_values:
+            torch.backends.cuda.matmul.fp32_precision = test_value
+            assert torch.backends.cuda.matmul.fp32_precision == test_value
 
-        torch.backends.cuda.matmul.fp32_precision = "high"
-        assert torch.backends.cuda.matmul.fp32_precision == "high"
-        assert torch.get_float32_matmul_precision() == "high"
+            # Only check the underlying old API for older PyTorch versions
+            if check_underlying_api:
+                assert torch.get_float32_matmul_precision() == test_value
 
         # Restore original
         torch.backends.cuda.matmul.fp32_precision = original
@@ -1381,6 +1392,102 @@ class TestLibraryImpl:
         op = getattr(torch.ops, lib_name)
         result = op.identity_op(x)
         assert result is x
+
+    def test_library_impl_with_allow_override(self):
+        """Test that Library.impl with allow_override=True works."""
+        import uuid
+
+        import torch
+        import torch.library
+
+        import torchada
+
+        if not torchada.is_musa_platform():
+            pytest.skip("Only applicable on MUSA platform")
+
+        # Skip for PyTorch versions below 2.9 as allow_override may not be supported
+        if torch.__version__ < torch.torch_version.TorchVersion("2.9.0"):
+            pytest.skip("allow_override parameter requires PyTorch 2.9 or higher")
+
+        lib_name = f"test_lib_{uuid.uuid4().hex[:8]}"
+        test_lib = torch.library.Library(lib_name, "DEF")
+
+        def identity_allow_override_1(x: torch.Tensor) -> torch.Tensor:
+            return x
+        def doubled_allow_override_2(x: torch.Tensor) -> torch.Tensor:
+            return 2*x
+
+        test_lib.define("test_op(Tensor x) -> Tensor")
+        test_lib.impl("test_op", identity_allow_override_1, "CPU")
+        test_lib.impl("test_op", doubled_allow_override_2, "CPU", allow_override=True)
+
+        x = torch.randn(3)
+        op = getattr(torch.ops, lib_name)
+        result = op.test_op(x)
+        assert torch.equal(result, 2 * x)
+
+    def test_library_impl_allow_override_false_explicit(self):
+        """Test that Library.impl with allow_override=False explicitly works."""
+        import uuid
+
+        import torch
+        import torch.library
+
+        import torchada
+
+        if not torchada.is_musa_platform():
+            pytest.skip("Only applicable on MUSA platform")
+
+        # Skip for PyTorch versions below 2.9 as allow_override may not be supported
+        if torch.__version__ < torch.torch_version.TorchVersion("2.9.0"):
+            pytest.skip("allow_override parameter requires PyTorch 2.9 or higher")
+
+        lib_name = f"test_lib_{uuid.uuid4().hex[:8]}"
+        test_lib = torch.library.Library(lib_name, "DEF")
+
+        def identity(x: torch.Tensor) -> torch.Tensor:
+            return x
+
+        test_lib.define("identity_op(Tensor x) -> Tensor")
+        test_lib.impl("identity_op", identity, "CPU", allow_override=False)
+
+        x = torch.randn(3)
+        op = getattr(torch.ops, lib_name)
+        result = op.identity_op(x)
+        assert result is x
+
+    def test_library_impl_with_keyset_and_with_allow_override(self):
+        """Test that Library.impl with with_keyset=True and allow_override=True works."""
+        import uuid
+
+        import torch
+        import torch.library
+
+        import torchada
+
+        if not torchada.is_musa_platform():
+            pytest.skip("Only applicable on MUSA platform")
+
+        # Skip for PyTorch versions below 2.9 as allow_override may not be supported
+        if torch.__version__ < torch.torch_version.TorchVersion("2.9.0"):
+            pytest.skip("allow_override parameter requires PyTorch 2.9 or higher")
+
+        lib_name = f"test_lib_{uuid.uuid4().hex[:8]}"
+        test_lib = torch.library.Library(lib_name, "DEF")
+
+        def identity_allow_override_with_keyset_1(keyset, x: torch.Tensor) -> torch.Tensor:
+            return x
+        def doubled_allow_override_with_keyset_2(keyset, x: torch.Tensor) -> torch.Tensor:
+            return 2*x
+
+        test_lib.define("test_op(Tensor x) -> Tensor")
+        test_lib.impl("test_op", identity_allow_override_with_keyset_1, "CPU", with_keyset=True)
+        test_lib.impl("test_op", doubled_allow_override_with_keyset_2, "CPU", with_keyset=True, allow_override=True)
+
+        x = torch.randn(3)
+        op = getattr(torch.ops, lib_name)
+        result = op.test_op(x)
+        assert torch.equal(result, 2 * x)
 
     def test_library_impl_fn_as_keyword(self):
         """Test that Library.impl works with fn as keyword argument."""
