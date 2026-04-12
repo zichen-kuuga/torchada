@@ -624,7 +624,10 @@ def _get_build_extension_class():
                             if needs_porting:
                                 source_dir = os.path.dirname(os.path.abspath(source))
                                 dirs_to_port.add(source_dir)
-
+                        # Sort directories by depth (deepest first) to ensure proper porting order
+                        dirs_to_port = sorted(
+                            dirs_to_port, key=lambda p: p.count("/"), reverse=True
+                        )
                         # Port each unique directory
                         for cuda_dir in dirs_to_port:
                             self._port_directory(cuda_dir, mapping_rule)
